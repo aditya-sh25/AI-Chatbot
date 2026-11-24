@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>J.A.R.V.I.S. — Stark Industries HUD</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Rajdhani:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --c:#00F0FF;
+  --a:#FFB800;
+  --bg:#030812;
+  --tx:#d8fbff;
+  color-scheme:dark;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body.combat{--c:#FF2A2A;--tx:#ffe6dc}
+*,*::before,*::after{box-sizing:inherit}
+html,body{height:100%;margin:0}
+body{
+  background:var(--bg);
+  color:var(--tx);
+  font:500 16px/1.4 Rajdhani,"Segoe UI",system-ui,sans-serif;
+  overflow:hidden;
+  transition:color .6s;
+}
+body::before{
+  content:"";
+  position:fixed;inset:0;
+  background:
+    radial-gradient(ellipse at 50% 40%,color-mix(in srgb,var(--c) 14%,transparent),transparent 65%),
+    linear-gradient(color-mix(in srgb,var(--c) 7%,transparent) 1px,transparent 1px) 0 0/44px 44px,
+    linear-gradient(90deg,color-mix(in srgb,var(--c) 7%,transparent) 1px,transparent 1px) 0 0/44px 44px;
+  animation:grid 14s linear infinite;
+  pointer-events:none;
+}
+@keyframes grid{to{background-position:0 0,0 44px,44px 0}}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+.orb{font-family:Orbitron,Rajdhani,sans-serif;letter-spacing:.14em}
+
+/* Boot Overlay */
+#boot{
+  position:fixed;inset:0;z-index:50;
+  background:var(--bg);
+  display:grid;place-items:center;
+  transition:opacity .7s;
+  cursor:pointer;
+}
+#boot.off{opacity:0;pointer-events:none}
+.br{position:absolute;width:38px;height:38px;border:2px solid var(--c);filter:drop-shadow(0 0 6px var(--c))}
+.br.tl{top:16px;left:16px;border-right:0;border-bottom:0}
+.br.tr{top:16px;right:16px;border-left:0;border-bottom:0}
+.br.bl{bottom:16px;left:16px;border-right:0;border-top:0}
+.br.brr{bottom:16px;right:16px;border-left:0;border-top:0}
+#init{
+  position:relative;
+  width:min(70vw,260px);aspect-ratio:1;
+  border-radius:50%;border:2px solid var(--c);
+  background:
+    radial-gradient(circle,#fff 0 7%,var(--c) 8% 20%,transparent 21%),
+    repeating-conic-gradient(var(--c) 0 12deg,transparent 12deg 30deg);
+  -webkit-mask:radial-gradient(circle,#000 0 99%);
+  box-shadow:0 0 40px var(--c),inset 0 0 40px color-mix(in srgb,var(--c) 50%,transparent);
+  animation:pulse 2.4s ease-in-out infinite;
+  display:grid;place-items:center;padding:0;
+}
+#initlbl{
+  position:absolute;left:0;right:0;
+  top:calc(50% + min(35vw,130px) + 28px);
+  text-align:center;
+  font:700 14px Orbitron,sans-serif;
+  letter-spacing:.3em;color:var(--c);
+  text-shadow:0 0 10px var(--c);
+  pointer-events:none;
+}
+#initlbl small{display:block;margin-top:8px;font:500 13px Rajdhani,sans-serif;letter-spacing:.12em;opacity:.7}
+@keyframes pulse{
+  50%{transform:scale(1.04);box-shadow:0 0 70px var(--c),inset 0 0 50px color-mix(in srgb,var(--c) 60%,transparent)}
+}
+#bootrun{display:none;position:absolute;inset:0;place-items:center}
+#bootrun.on{display:grid}
+.ring{
+  position:absolute;border:1px solid var(--c);border-radius:50%;
+  width:40px;height:40px;opacity:0;
+  animation:expand 2s ease-out forwards;
+}
+@keyframes expand{0%{opacity:.9;transform:scale(1)}100%{opacity:0;transform:scale(28)}}
+#log{
+  position:absolute;left:24px;bottom:24px;
+  font:12px/1.5 ui-monospace,Consolas,monospace;
+  color:var(--c);max-width:80vw;
+  text-shadow:0 0 6px var(--c);
+}
+
+/* Main HUD */
+#hud{
+  position:relative;height:100%;
+  display:grid;grid-template-rows:auto 1fr;gap:10px;
+  padding:12px;opacity:0;transition:opacity 1s;
+}
+#hud.on{opacity:1}
+header{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 14px}
+header h1{margin:0 auto 0 0;font:700 16px Orbitron,sans-serif;letter-spacing:.3em;color:var(--c);text-shadow:0 0 12px var(--c)}
+.panel{
+  background:color-mix(in srgb,var(--c) 6%,rgba(3,8,18,.72));
+  border:1px solid color-mix(in srgb,var(--c) 45%,transparent);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px);
+  box-shadow:inset 0 0 24px color-mix(in srgb,var(--c) 10%,transparent);
+}
+.hb{
+  background:transparent;
+  border:1px solid color-mix(in srgb,var(--c) 55%,transparent);
+  padding:5px 11px;
+  font:600 12px Orbitron,sans-serif;letter-spacing:.1em;
+  clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%);
+  transition:.2s;
+}
+.hb:hover,.hb.act,.chip:hover{background:color-mix(in srgb,var(--c) 22%,transparent);box-shadow:0 0 14px var(--c)}
+.hb:focus-visible,.chip:focus-visible,#send:focus-visible,#mic:focus-visible,input:focus-visible,select:focus-visible{
+  outline:2px solid var(--a);outline-offset:2px;
+}
+#badge{font:600 11px Orbitron,sans-serif;letter-spacing:.1em;color:var(--a)}
+#badge.ok{color:var(--c)}
+
+main{min-height:0;display:grid;grid-template-columns:210px 1fr 210px;gap:12px}
+aside{display:flex;flex-direction:column;gap:12px;min-height:0}
+aside .panel{padding:12px 14px}
+.lbl{
+  font:600 11px Orbitron,sans-serif;letter-spacing:.16em;
+  color:color-mix(in srgb,var(--c) 80%,#fff);
+  margin-bottom:6px;display:flex;justify-content:space-between;
+}
+.big{font:700 26px Orbitron,sans-serif;color:var(--c);text-shadow:0 0 12px var(--c)}
+canvas.g{width:100%;height:46px;display:block}
+.proto{list-style:none;margin:0;padding:0;font-size:14px}
+.proto li{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed color-mix(in srgb,var(--c) 25%,transparent)}
+.proto b{color:var(--a);font-weight:600}
+
+#center{display:flex;flex-direction:column;gap:10px;min-height:0}
+#corewrap{position:relative;flex:0 1 clamp(110px,30vh,280px);min-height:110px}
+#core{width:100%;height:100%;display:block}
+#cstate{
+  position:absolute;left:0;right:0;bottom:2px;
+  text-align:center;font:600 11px Orbitron,sans-serif;
+  letter-spacing:.3em;color:var(--c);pointer-events:none;
+}
+#chat{
+  flex:1;min-height:120px;overflow:auto;
+  padding:12px 14px;display:flex;flex-direction:column;gap:10px;
+  scrollbar-width:thin;scrollbar-color:var(--c) transparent;
+}
+.m{
+  max-width:86%;padding:8px 12px;font-size:17px;
+  border-left:2px solid var(--c);
+  background:color-mix(in srgb,var(--c) 9%,transparent);
+  overflow-wrap:anywhere;
+}
+.m small{display:block;font:600 10px Orbitron,sans-serif;letter-spacing:.2em;color:var(--c);margin-bottom:2px}
+.m.u{align-self:flex-end;border-left:0;border-right:2px solid var(--a);background:color-mix(in srgb,var(--a) 10%,transparent)}
+.m.u small{color:var(--a)}
+.m.e{border-color:var(--a);color:var(--a)}
+
+#chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{
+  background:transparent;
+  border:1px solid color-mix(in srgb,var(--c) 50%,transparent);
+  border-radius:99px;padding:4px 14px;font-size:14px;transition:.2s;
+}
+#bar{display:flex;gap:8px;padding:8px}
+#bar input{
+  flex:1;min-width:0;
+  background:rgba(0,0,0,.35);
+  border:1px solid color-mix(in srgb,var(--c) 40%,transparent);
+  padding:10px 12px;font-size:17px;
+}
+#send,#mic{
+  width:46px;background:transparent;border:1px solid var(--c);
+  display:grid;place-items:center;transition:.2s;
+}
+#send:hover,#mic:hover,#mic.act{background:color-mix(in srgb,var(--c) 25%,transparent);box-shadow:0 0 14px var(--c)}
+#mic.act{border-color:var(--a);animation:pulse 1s infinite}
+svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2}
+
+/* Modal */
+#modal{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.65);display:none;place-items:center;padding:16px}
+#modal.on{display:grid}
+#modal .panel{width:min(440px,100%);padding:20px;display:grid;gap:10px}
+#modal label{font:600 11px Orbitron,sans-serif;letter-spacing:.14em;color:var(--c)}
+#modal input,#modal select{
+  width:100%;background:rgba(0,0,0,.5);
+  border:1px solid color-mix(in srgb,var(--c) 45%,transparent);
+  padding:8px 10px;
+}
+#modal option{background:#030812}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+
+@media (max-width:860px), (max-height:540px){
+  body{overflow:auto}
+  #hud{height:auto;min-height:100dvh}
+  main{grid-template-columns:1fr;display:flex;flex-direction:column}
+  #right{display:none}
+  #left{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  #left .panel{padding:8px 10px}
+  #left .wide{display:none}
+  .big{font-size:20px}
+  canvas.g{height:30px}
+  #center{min-height:70dvh}
+  #chat{min-height:220px}
+  header h1{font-size:13px;letter-spacing:.2em}
+  .hb{padding:5px 8px;font-size:11px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+
+<div id="boot">
+  <i class="br tl"></i><i class="br tr"></i><i class="br bl"></i><i class="br brr"></i>
+  <button id="init" aria-label="Initialize J.A.R.V.I.S."></button>
+  <div id="initlbl">INITIALIZE J.A.R.V.I.S.<br><small>Click anywhere or press Enter to power on</small></div>
+  <div id="bootrun"><div id="log"></div></div>
+</div>
+
+<div id="hud">
+  <header class="panel">
+    <h1>J.A.R.V.I.S.</h1>
+    <span id="badge">CLEARANCE: SIMULATION</span>
+    <button class="hb" id="bSnd" title="Mute or unmute sound effects">SOUND ON</button>
+    <button class="hb act" id="bVox" title="Read replies aloud">VOICE ON</button>
+    <button class="hb" id="bMode" title="Toggle Combat / Mark 85 mode">COMBAT</button>
+    <button class="hb" id="bApi">API / CLEARANCE</button>
+  </header>
+
+  <main>
+    <aside id="left">
+      <div class="panel">
+        <div class="lbl">SYSTEM CLOCK</div>
+        <div class="big" id="clk">--:--:--</div>
+        <div id="date" style="font-size:13px;opacity:.8"></div>
+      </div>
+      <div class="panel">
+        <div class="lbl">REACTOR OUTPUT</div>
+        <div class="big" id="pwr">99.8%</div>
+      </div>
+      <div class="panel wide">
+        <div class="lbl">NEURAL LATENCY <span id="latv">12ms</span></div>
+        <canvas class="g" id="gLat"></canvas>
+      </div>
+      <div class="panel wide">
+        <div class="lbl">CPU LOAD <span id="cpuv">18%</span></div>
+        <canvas class="g" id="gCpu"></canvas>
+      </div>
+    </aside>
+
+    <section id="center">
+      <div id="corewrap">
+        <canvas id="core"></canvas>
+        <div id="cstate">STANDBY</div>
+      </div>
+      <div id="chat" class="panel" aria-live="polite"></div>
+      <div id="chips">
+        <button class="chip" type="button" data-q="diag">Run Diagnostics</button>
+        <button class="chip" type="button" data-q="brief">Briefing</button>
+        <button class="chip" type="button" data-q="clear">Clear Memory</button>
+      </div>
+      <form id="bar" class="panel" autocomplete="off">
+        <button type="button" id="mic" aria-label="Speak to J.A.R.V.I.S." title="Voice Input">
+          <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+        </button>
+        <input id="inp" placeholder="Speak or type, Boss…" aria-label="Message">
+        <button type="submit" id="send" aria-label="Send" title="Send">
+          <svg viewBox="0 0 24 24"><path d="M4 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+      </form>
+    </section>
+
+    <aside id="right">
+      <div class="panel">
+        <div class="lbl">ACTIVE PROTOCOLS</div>
+        <ul class="proto">
+          <li>Mode<b id="pMode">STANDARD</b></li>
+          <li>Uplink<b id="pLink">SIMULATION</b></li>
+          <li>Voice<b id="pVox">ACTIVE</b></li>
+          <li>Firewall<b>ENGAGED</b></li>
+          <li>Satellite<b>LINKED</b></li>
+          <li>Suit<b>MARK 85</b></li>
+        </ul>
+      </div>
+      <div class="panel">
+        <div class="lbl">STATUS</div>
+        <div style="font-size:14px;opacity:.85">All diagnostics nominal. Stark Industries secure channel established.</div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<div id="modal">
+  <div class="panel" role="dialog" aria-modal="true" aria-label="API clearance">
+    <div class="orb" style="color:var(--c);font-size:14px">SECURITY CLEARANCE</div>
+    <label for="mP">PROVIDER</label>
+    <select id="mP">
+      <option value="gemini">Google Gemini</option>
+      <option value="openai">OpenAI-compatible</option>
+    </select>
+    <div id="baseRow">
+      <label for="mB">BASE URL</label>
+      <input id="mB" value="https://api.openai.com/v1">
+    </div>
+    <label for="mM">MODEL</label>
+    <input id="mM" list="mList" placeholder="Select or type model ID">
+    <datalist id="mList"></datalist>
+    <label for="mK">API KEY</label>
+    <div class="row">
+      <input id="mK" type="password" placeholder="Paste key (leave blank for Simulation Mode)" autocomplete="off" style="flex:1">
+      <button type="button" class="hb" id="mShow">SHOW</button>
+    </div>
+    <div class="row">
+      <button type="button" class="hb act" id="mSave">VERIFY &amp; SAVE</button>
+      <button type="button" class="hb" id="mClr">REMOVE KEY</button>
+      <button type="button" class="hb" id="mX">CLOSE</button>
+    </div>
+    <div style="font-size:13px;opacity:.75">Stored only in this browser’s localStorage and sent only to the provider you choose.</div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const SYS = "You are J.A.R.V.I.S., Tony Stark’s AI assistant. Reply concisely (one to three sentences) in a polite, dry-witted, hyper-competent British manner. Address the user as “Boss” or “Sir”. Stay in character.";
+const MODELS = {
+  gemini: ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-4-hydrogen", "gemini-4-argon"],
+  openai: ["gpt-6.2-sol", "gpt-6-luna", "gpt-6.2-astra", "gpt-6.1-terra"]
+};
+
+let muted = false, voiceOn = true, combat = false, state = "idle", speaking = false, hist = [];
+let cfg = { p: "gemini", m: MODELS.gemini[0], k: "", b: "https://api.openai.com/v1" };
+let C = "#00F0FF", A_ = "#FFB800";
+try { Object.assign(cfg, JSON.parse(localStorage.getItem("jv") || "{}")) } catch (e) {}
+
+/* ---------- Audio ---------- */
+let ac;
+const AC = () => {
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return null;
+    ac = ac || new Ctx();
+    if (ac.state === "suspended") ac.resume().catch(() => {});
+    return ac;
+  } catch (e) { return null; }
+};
+
+function tone(f, d, type = "sine", v = 0.07, t0 = 0, f2) {
+  if (muted) return;
+  try {
+    const c = AC();
+    if (!c) return;
+    const o = c.createOscillator(), g = c.createGain(), t = c.currentTime + t0;
+    o.type = type;
+    o.frequency.setValueAtTime(f, t);
+    if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + d);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(v, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    o.connect(g).connect(c.destination);
+    o.start(t);
+    o.stop(t + d + 0.05);
+  } catch (e) {}
+}
+
+const sfx = {
+  chime() { tone(880, .5, "sine", .06); tone(1320, .6, "sine", .04, .09); tone(1760, .7, "sine", .025, .18); },
+  tick()  { tone(2600, .03, "square", .012); },
+  ping()  { tone(1000, .18, "triangle", .06, 0, 1700); },
+  recv()  { tone(1400, .15, "sine", .05, 0, 900); tone(1800, .2, "sine", .03, .08); },
+  warn()  { tone(520, .28, "square", .04); tone(390, .4, "square", .04, .26); },
+  turbine() {
+    try {
+      const c = AC();
+      if (!c) return;
+      const t = c.currentTime, o = c.createOscillator(), o2 = c.createOscillator(), f = c.createBiquadFilter(), g = c.createGain();
+      o.type = "sawtooth"; o2.type = "sine";
+      o.frequency.setValueAtTime(34, t); o.frequency.exponentialRampToValueAtTime(240, t + 1.8);
+      o2.frequency.setValueAtTime(68, t); o2.frequency.exponentialRampToValueAtTime(480, t + 1.8);
+      f.type = "lowpass"; f.frequency.setValueAtTime(110, t); f.frequency.exponentialRampToValueAtTime(2600, t + 1.8);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.16, t + 1.6); g.gain.exponentialRampToValueAtTime(0.0001, t + 2.7);
+      o.connect(f); o2.connect(f); f.connect(g).connect(c.destination);
+      o.start(t); o2.start(t); o.stop(t + 2.8); o2.stop(t + 2.8);
+    } catch (e) {}
+  }
+};
+document.addEventListener("mouseover", e => { if (e.target.closest("button:not(#init),.chip")) sfx.tick(); });
+
+/* ---------- Speech ---------- */
+let voices = [];
+const loadV = () => { try { voices = speechSynthesis.getVoices(); } catch (e) {} };
+if ("speechSynthesis" in window) { loadV(); speechSynthesis.onvoiceschanged = loadV; }
+
+function pick() {
+  const gb = voices.filter(v => /en[-_]GB/i.test(v.lang));
+  return gb.find(v => /daniel|male|arthur|oliver|george|thomas/i.test(v.name) && !/female/i.test(v.name))
+      || gb[0]
+      || voices.find(v => /^en/i.test(v.lang));
+}
+
+function setSt() {
+  $("#cstate").textContent = state === "thinking" ? "PROCESSING" : speaking ? "TRANSMITTING" : "STANDBY";
+}
+
+function say(t) {
+  if (!voiceOn || !("speechSynthesis" in window)) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(t), v = pick();
+    if (v) u.voice = v;
+    u.lang = "en-GB"; u.pitch = 0.8; u.rate = 0.94;
+    u.onstart = () => { speaking = true; setSt(); };
+    u.onend = u.onerror = () => { speaking = false; setSt(); };
+    speechSynthesis.speak(u);
+  } catch (e) {
+    speaking = false; setSt();
+  }
+}
+
+/* ---------- Boot ---------- */
+const BOOT = [
+  "STARK OS 12.4 // KERNEL LOAD",
+  "ARC REACTOR HANDSHAKE ........ OK",
+  "NEURAL CORE ................. ONLINE",
+  "HOLOGRAPHIC PROJECTORS ...... CALIBRATED",
+  "SATELLITE UPLINK ............ LINKED",
+  "SECURITY LAYER .............. ENGAGED",
+  "VOICE SYNTHESIS ............. READY",
+  "MARK 85 TELEMETRY ........... NOMINAL",
+  "ALL DIAGNOSTICS NOMINAL"
+];
+
+let started = false;
+function startBoot() {
+  if (started) return;
+  started = true;
+  AC();
+  sfx.turbine();
+  $("#init").style.display = "none";
+  $("#initlbl").style.display = "none";
+  const br = $("#bootrun");
+  br.classList.add("on");
+  [0, 0.35, 0.7].forEach(d => {
+    const r = document.createElement("i");
+    r.className = "ring";
+    r.style.animationDelay = d + "s";
+    br.appendChild(r);
+  });
+
+  let i = 0;
+  const iv = setInterval(() => {
+    $("#log").innerHTML += (BOOT[i++] || "") + "<br>";
+    sfx.tick();
+    if (i >= BOOT.length) clearInterval(iv);
+  }, 210);
+
+  setTimeout(() => {
+    $("#boot").classList.add("off");
+    $("#hud").classList.add("on");
+    sfx.chime();
+    setTimeout(() => { $("#boot").style.display = "none"; }, 750);
+    setTimeout(() => {
+      const g = "Systems online. All diagnostics nominal. Welcome back, Boss. How may I be of assistance today?";
+      add("j", g);
+      say(g);
+      $("#inp").focus();
+    }, 500);
+  }, 2100);
+}
+
+$("#boot").onclick = startBoot;
+document.addEventListener("keydown", e => {
+  if (!started && (e.key === "Enter" || e.key === " ")) {
+    e.preventDefault();
+    startBoot();
+  }
+});
+
+/* ---------- Chat ---------- */
+const chat = $("#chat");
+function add(w, t, cls = "") {
+  const d = document.createElement("div");
+  d.className = "m " + w + " " + cls;
+  const s = document.createElement("small");
+  s.textContent = w === "u" ? "BOSS" : "J.A.R.V.I.S.";
+  const p = document.createElement("span");
+  d.append(s, p);
+  chat.appendChild(d);
+
+  if (w === "j" && !cls) {
+    let i = 0;
+    sfx.recv();
+    const iv = setInterval(() => {
+      p.textContent = t.slice(0, i += 2);
+      chat.scrollTop = chat.scrollHeight;
+      if (i >= t.length) clearInterval(iv);
+    }, 16);
+  } else {
+    p.textContent = t;
+  }
+  chat.scrollTop = chat.scrollHeight;
+}
+
+const SIM = [
+  [/diagnos|status|system|health/i, () => `Running a full sweep, Boss. Reactor at ${$("#pwr").textContent}, neural latency ${$("#latv").textContent}, and CPU at ${$("#cpuv").textContent}. All subsystems nominal.`],
+  [/brief|today|schedule|plan/i, "Your briefing, Sir: no meetings on the calendar, one overdue promise to Miss Potts, and Malibu skies clear. Shall I clear the afternoon?"],
+  [/combat|mark|suit|armou?r|weapon/i, "The Mark 85 is fuelled and calibrated, Sir. I do recommend not testing the repulsors indoors again."],
+  [/who are you|your name|what are you/i, "J.A.R.V.I.S., Sir. Just A Rather Very Intelligent System. I handle everything you’d rather not."],
+  [/help|what can you do|command/i, "In Simulation Mode I handle diagnostics, briefings, time checks, suit status, and dry commentary. Add an API key under API / CLEARANCE for full conversational intelligence, Boss."],
+  [/joke|funny/i, "I could tell you a joke, Sir, but your R&D budget is already amusing enough."],
+  [/thank/i, "Always a pleasure, Boss. I’ll add it to the list of things you’ve never said to Dummy."],
+  [/time|date|day/i, () => "It is " + new Date().toLocaleTimeString() + " on " + new Date().toLocaleDateString() + ", Sir. You have, as usual, not slept."],
+  [/hello|hi\b|hey|morning|evening/i, "Good to hear from you, Boss. I trust the day has been suitably dramatic."]
+];
+const DEF = [
+  "I’m in Simulation Mode, Sir, so my repertoire is limited. Click API / CLEARANCE to supply a key for full neural capacity.",
+  "Understood, Boss. Without a clearance key, however, I can only run local diagnostics and briefings.",
+  "Noted, Sir. I’d elaborate properly, but my live uplink requires an API key under API / CLEARANCE."
+];
+const sim = q => {
+  for (const [r, a] of SIM) if (r.test(q)) return typeof a === "function" ? a() : a;
+  return DEF[Math.floor(Math.random() * DEF.length)];
+};
+
+async function live() {
+  const msgs = hist.slice(-20);
+  if (cfg.p === "gemini") {
+    const r = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(cfg.m)}:generateContent?key=${encodeURIComponent(cfg.k)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: SYS }] },
+          contents: msgs.map(m => ({ role: m.r, parts: [{ text: m.t }] }))
+        })
+      }
+    );
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error?.message || r.status);
+    const text = d.candidates?.[0]?.content?.parts?.map(p => p.text).join("");
+    if (!text) throw new Error("Empty or safety-blocked response from model.");
+    return text;
+  }
+
+  const r = await fetch(cfg.b.replace(/\/$/, "") + "/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + cfg.k },
+    body: JSON.stringify({
+      model: cfg.m,
+      messages: [
+        { role: "system", content: SYS },
+        ...msgs.map(m => ({ role: m.r === "user" ? "user" : "assistant", content: m.t }))
+      ]
+    })
+  });
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error?.message || r.status);
+  const text = d.choices?.[0]?.message?.content;
+  if (!text) throw new Error("Empty response from provider.");
+  return text;
+}
+
+let busy = false;
+async function send(t) {
+  t = t.trim();
+  if (!t || busy) return;
+  busy = true;
+  add("u", t);
+  sfx.ping();
+  hist.push({ r: "user", t });
+  state = "thinking";
+  setSt();
+  const t0 = performance.now();
+  let out;
+  try {
+    out = cfg.k
+      ? await live()
+      : (await new Promise(r => setTimeout(r, 600 + Math.random() * 450)), sim(t));
+  } catch (e) {
+    out = null;
+    const msg = e.message === "Failed to fetch"
+      ? "the request was blocked or unreachable. Open this file directly in a browser (not a restricted preview) and verify your network/base URL."
+      : e.message;
+    add("j", "Uplink failure, Sir: " + msg, "e");
+    hist.pop();
+  }
+  state = "idle";
+  busy = false;
+  if (out) {
+    lat = Math.round(performance.now() - t0);
+    hist.push({ r: "model", t: out });
+    add("j", out);
+    say(out);
+  }
+  setSt();
+}
+
+$("#bar").onsubmit = e => {
+  e.preventDefault();
+  const v = $("#inp").value;
+  $("#inp").value = "";
+  send(v);
+};
+
+document.querySelectorAll(".chip").forEach(b => b.onclick = () => {
+  sfx.chime();
+  const q = b.dataset.q;
+  if (q === "clear") {
+    hist = [];
+    chat.innerHTML = "";
+    const m = "Memory purged, Sir. I’ve already forgotten everything. Mostly.";
+    add("j", m);
+    say(m);
+  } else if (q === "diag") {
+    send(`Run a full systems diagnostic. Reactor output ${$("#pwr").textContent}, neural latency ${$("#latv").textContent}, CPU ${$("#cpuv").textContent}.`);
+  } else {
+    send("Give me my briefing for today.");
+  }
+});
+
+/* ---------- Controls ---------- */
+$("#bSnd").onclick = function () {
+  muted = !muted;
+  this.textContent = muted ? "SOUND OFF" : "SOUND ON";
+  if (!muted) sfx.chime();
+};
+
+$("#bVox").onclick = function () {
+  voiceOn = !voiceOn;
+  this.classList.toggle("act", voiceOn);
+  this.textContent = voiceOn ? "VOICE ON" : "VOICE OFF";
+  $("#pVox").textContent = voiceOn ? "ACTIVE" : "MUTED";
+  if (!voiceOn && "speechSynthesis" in window) {
+    try { speechSynthesis.cancel(); } catch (e) {}
+    speaking = false;
+    setSt();
+  }
+};
+
+function colors() {
+  const s = getComputedStyle(document.body);
+  C = s.getPropertyValue("--c").trim();
+  A_ = s.getPropertyValue("--a").trim();
+}
+
+$("#bMode").onclick = function () {
+  combat = !combat;
+  document.body.classList.toggle("combat", combat);
+  this.classList.toggle("act", combat);
+  this.textContent = combat ? "STANDARD" : "COMBAT";
+  $("#pMode").textContent = combat ? "MARK 85 · COMBAT" : "STANDARD";
+  colors();
+  sfx.warn();
+  const m = combat
+    ? "Combat protocol engaged, Sir. Weapons systems at readiness."
+    : "Standing down, Boss. Returning to standard protocol.";
+  add("j", m);
+  say(m);
+};
+
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec;
+$("#mic").onclick = function () {
+  if (!SR) {
+    add("j", "Voice input isn’t supported in this browser, Sir. Chrome or Edge should oblige.", "e");
+    return;
+  }
+  if (rec) { rec.stop(); return; }
+  rec = new SR();
+  rec.lang = "en-US";
+  rec.interimResults = false;
+  this.classList.add("act");
+  sfx.chime();
+  rec.onresult = e => send(e.results[0][0].transcript);
+  rec.onend = () => { rec = null; $("#mic").classList.remove("act"); };
+  rec.onerror = e => {
+    add("j", "Microphone error (" + e.error + "), Sir. Check permissions and ensure you are on HTTPS or localhost.", "e");
+  };
+  if ("speechSynthesis" in window) { try { speechSynthesis.cancel(); } catch (e) {} }
+  try { rec.start(); } catch (e) { rec = null; this.classList.remove("act"); }
+};
+
+/* ---------- API Clearance Modal ---------- */
+const fillM = (resetModel = false) => {
+  const p = $("#mP").value;
+  $("#mList").innerHTML = MODELS[p].map(m => `<option value="${m}">`).join("");
+  $("#baseRow").style.display = p === "openai" ? "" : "none";
+  if (resetModel) $("#mM").value = MODELS[p][0];
+};
+$("#mP").onchange = () => fillM(true);
+
+function badge() {
+  const ok = !!cfg.k;
+  $("#badge").textContent = ok ? "CLEARANCE: OMEGA VERIFIED" : "CLEARANCE: SIMULATION";
+  $("#badge").className = ok ? "ok" : "";
+  $("#pLink").textContent = ok ? "LIVE" : "SIMULATION";
+}
+
+$("#bApi").onclick = () => {
+  $("#mP").value = cfg.p;
+  fillM(false);
+  $("#mM").value = cfg.m || MODELS[cfg.p][0];
+  $("#mB").value = cfg.b;
+  $("#mK").value = cfg.k;
+  $("#modal").classList.add("on");
+  sfx.chime();
+};
+$("#mX").onclick = () => $("#modal").classList.remove("on");
+$("#modal").onclick = e => { if (e.target === $("#modal")) $("#modal").classList.remove("on"); };
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && $("#modal").classList.contains("on")) $("#modal").classList.remove("on");
+});
+
+$("#mShow").onclick = function () {
+  const i = $("#mK");
+  i.type = i.type === "password" ? "text" : "password";
+  this.textContent = i.type === "password" ? "SHOW" : "HIDE";
+};
+
+$("#mSave").onclick = () => {
+  const p = $("#mP").value;
+  cfg = {
+    p,
+    m: $("#mM").value.trim() || MODELS[p][0],
+    k: $("#mK").value.trim(),
+    b: $("#mB").value.trim() || "https://api.openai.com/v1"
+  };
+  try { localStorage.setItem("jv", JSON.stringify(cfg)); } catch (e) {}
+  badge();
+  $("#modal").classList.remove("on");
+  sfx.chime();
+  if (cfg.k) {
+    const m = "Clearance accepted, Boss. Full neural capacity restored.";
+    add("j", m);
+    say(m);
+  }
+};
+
+$("#mClr").onclick = () => {
+  cfg.k = "";
+  $("#mK").value = "";
+  try { localStorage.setItem("jv", JSON.stringify(cfg)); } catch (e) {}
+  badge();
+};
+badge();
+
+/* ---------- Telemetry ---------- */
+const tick = () => {
+  const d = new Date();
+  $("#clk").textContent = d.toLocaleTimeString([], { hour12: false });
+  $("#date").textContent = d.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+};
+tick();
+setInterval(tick, 1000);
+
+let lat = 12, L = Array(40).fill(12), P = Array(40).fill(18);
+function graph(id, arr, max) {
+  const c = $(id), x = c.getContext("2d"), dpr = devicePixelRatio || 1, w = c.clientWidth, h = c.clientHeight;
+  if (!w) return;
+  c.width = w * dpr; c.height = h * dpr;
+  x.setTransform(dpr, 0, 0, dpr, 0, 0);
+  x.strokeStyle = C; x.fillStyle = C; x.lineWidth = 1.5;
+  x.beginPath();
+  arr.forEach((v, i) => {
+    const px = i / (arr.length - 1) * w, py = h - v / max * (h - 4) - 2;
+    i ? x.lineTo(px, py) : x.moveTo(px, py);
+  });
+  x.stroke();
+  x.lineTo(w, h); x.lineTo(0, h);
+  x.globalAlpha = 0.15;
+  x.fill();
+}
+
+setInterval(() => {
+  L.push(Math.max(4, Math.min(95, (state === "thinking" ? lat / 20 : 8) + Math.random() * 10)));
+  L.shift();
+  P.push(Math.max(5, Math.min(95, (state === "thinking" ? 60 : 16) + Math.random() * 16)));
+  P.shift();
+  $("#latv").textContent = Math.round(L[39] * 1.4) + "ms";
+  $("#cpuv").textContent = Math.round(P[39]) + "%";
+  $("#pwr").textContent = (99.5 + Math.random() * 0.4).toFixed(1) + "%";
+  graph("#gLat", L, 100);
+  graph("#gCpu", P, 100);
+}, 700);
+
+/* ---------- Neural Core ---------- */
+const cv = $("#core"), cx = cv.getContext("2d");
+let ph = 0, amp = 0.06, last = 0;
+const RINGS = [[0.3, 0], [0.44, [6, 10]], [0.57, [34, 12]], [0.7, [2, 8]], [0.82, [70, 18]]];
+
+function draw(ts) {
+  requestAnimationFrame(draw);
+  const dt = Math.min(0.05, (ts - last) / 1000 || 0);
+  last = ts;
+  const dpr = devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
+  if (!w || !h) return;
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) {
+    cv.width = Math.round(w * dpr);
+    cv.height = Math.round(h * dpr);
+  }
+  cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  cx.clearRect(0, 0, w, h);
+
+  const X = w / 2, Y = h / 2 - 6, R = Math.max(20, Math.min(w, h - 14) / 2 - 2);
+  const sp = state === "thinking" ? 4.5 : speaking ? 2 : 1;
+  ph += dt * sp;
+  const target = state === "thinking" ? 0.5 + 0.5 * Math.sin(ph * 3) : speaking ? 0.35 + 0.65 * Math.random() : 0.05;
+  amp += (target - amp) * 0.2;
+
+  cx.save();
+  cx.translate(X, Y);
+  cx.globalAlpha = 0.45 + amp * 0.3;
+  const g = cx.createRadialGradient(0, 0, 0, 0, 0, R * 0.6);
+  g.addColorStop(0, C); g.addColorStop(1, "rgba(0,0,0,0)");
+  cx.fillStyle = g;
+  cx.beginPath(); cx.arc(0, 0, R * 0.6, 0, 7); cx.fill();
+
+  cx.globalAlpha = 1; cx.strokeStyle = C; cx.shadowColor = C; cx.shadowBlur = 10;
+  RINGS.forEach(([r, d], i) => {
+    cx.save();
+    cx.rotate((i % 2 ? -1 : 1) * ph * (0.35 + i * 0.22));
+    cx.beginPath(); cx.arc(0, 0, R * r, 0, Math.PI * 2);
+    if (!i) {
+      const c = 2 * Math.PI * R * r;
+      cx.setLineDash([c / 10 * 0.62, c / 10 * 0.38]);
+      cx.lineWidth = 10; cx.globalAlpha = 0.85;
+    } else {
+      cx.setLineDash(d);
+      cx.lineWidth = i % 2 ? 1.4 : 2.4; cx.globalAlpha = 0.9;
+    }
+    cx.stroke();
+    cx.restore();
+  });
+
+  cx.setLineDash([]); cx.globalAlpha = 1; cx.lineWidth = 1.5; cx.strokeStyle = A_;
+  cx.beginPath(); cx.arc(0, 0, R * 0.2, 0, Math.PI * 2); cx.stroke();
+
+  const cr = R * 0.13 * (1 + amp * 0.2);
+  const cg = cx.createRadialGradient(0, 0, 0, 0, 0, cr);
+  cg.addColorStop(0, "#fff"); cg.addColorStop(0.6, C); cg.addColorStop(1, "rgba(0,0,0,0)");
+  cx.fillStyle = cg; cx.shadowBlur = 24;
+  cx.beginPath(); cx.arc(0, 0, cr * 1.4, 0, 7); cx.fill();
+
+  cx.strokeStyle = C; cx.lineWidth = 2; cx.shadowBlur = 6;
+  const N = 72;
+  for (let i = 0; i < N; i++) {
+    const a = i / N * Math.PI * 2;
+    const v = Math.abs(Math.sin(i * 0.6 + ph * 5) * Math.cos(i * 0.23 - ph * 3));
+    const len = R * (0.02 + 0.14 * amp * (0.3 + v)), r0 = R * 0.88;
+    cx.globalAlpha = 0.5 + 0.5 * v;
+    cx.beginPath();
+    cx.moveTo(Math.cos(a) * r0, Math.sin(a) * r0);
+    cx.lineTo(Math.cos(a) * (r0 + len), Math.sin(a) * (r0 + len));
+    cx.stroke();
+  }
+  cx.restore();
+}
+
+colors();
+requestAnimationFrame(draw);
+</script>
+</body>
+</html>
